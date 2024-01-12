@@ -1,0 +1,104 @@
+---
+title: "STA 302 Tutorial 2"
+format: html
+---
+```{r}
+#### Preamble ####
+# Purpose: Get data on 2021 shelter usage and make table
+# Author: Diana Liu
+# Email: guanzhi.liu@mail.utoronto.ca
+# Date: 12 Jan 2024
+
+#### Workspace setup ####
+install.packages("opendatatoronto")
+install.packages("knitr")
+
+library(knitr)
+library(janitor)
+library(lubridate)
+library(opendatatoronto)
+library(tidyverse)
+```
+
+```{r}
+#### Acquire ####
+toronto_shelters <-
+  # Each package is associated with a unique id  found in the "For 
+  # Developers" tab of the relevant page from Open Data Toronto
+  # https://open.toronto.ca/dataset/daily-shelter-overnight-service-occupancy-capacity/
+  list_package_resources("21c83b32-d5a8-4106-a54f-010dbe49f6f2") |>
+  # Within that package, we are interested in the 2021 dataset
+  filter(name == 
+    "daily-shelter-overnight-service-occupancy-capacity-2021.csv") |>
+  # Having reduced the dataset to one row we can get the resource
+  get_resource()
+
+write_csv(
+  x = toronto_shelters,
+  file = "toronto_shelters.csv"
+)
+
+head(toronto_shelters)
+```
+```{r}
+toronto_shelters_clean <-
+  clean_names(toronto_shelters) |>
+  mutate(occupancy_date = ymd(occupancy_date)) |> 
+  select(occupancy_date, occupied_beds)
+
+head(toronto_shelters_clean)
+```
+```{r}
+write_csv(
+  x = toronto_shelters_clean,
+  file = "cleaned_toronto_shelters.csv"
+)
+```
+
+```{r}
+#### Explore ####
+toronto_shelters_clean <-
+  read_csv(
+    "cleaned_toronto_shelters.csv",
+    show_col_types = FALSE
+  )
+
+toronto_shelters_clean |>
+  mutate(occupancy_month = month(
+    occupancy_date,
+    label = TRUE,
+    abbr = FALSE
+  )) |>
+  arrange(month(occupancy_date)) |> 
+  drop_na(occupied_beds) |> 
+  summarise(number_occupied = mean(occupied_beds),
+            .by = occupancy_month) |>
+  kable()
+```
+```{r}
+toronto_shelters_clean |>
+  mutate(occupancy_month = month(
+    occupancy_date,
+    label = TRUE,
+    abbr = FALSE
+  )) |>
+  arrange(month(occupancy_date)) |> 
+  drop_na(occupied_beds) |>
+  summarise(number_occupied = mean(occupied_beds),
+            .by = occupancy_month) |>
+  kable(
+    col.names = c("Month", "Average daily number of occupied beds"),
+    digits = 1
+  )
+
+```
+```{r}
+toronto_shelters_clean |>
+  ggplot(aes(x = occupancy_date, y = occupied_beds)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "Month", y = "Average number of occupied beds") +
+  scale_color_brewer(palette = "Set1")
+
+```
+
